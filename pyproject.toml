@@ -1,0 +1,38 @@
+[project]
+name = "eth-videoz"
+version = "1.0.0"
+description = "Scrape ETH videos in 0 clicks. Zap!"
+readme = { file = "README.org", content-type = "text/plain" }
+authors = [
+    { name = "Andrij Isakov", email = "andrij@isakov.uk" }
+]
+requires-python = ">=3.13"
+
+dependencies = [
+    "aiofiles==25.1.0",
+    "aiohttp==3.12.15",
+    "playwright==1.55.0",
+    "rainbow_tqdm==0.1.5",
+    "tqdm==4.67.1",
+]
+
+[dependency-groups]
+dev = ["pytest", "ruff"]
+
+[project.scripts]
+eth-videoz = "eth_videoz.eth_videoz:entry_point"
+
+[tool.ruff]
+# Set the maximum line length to 80
+# as per https://google.github.io/styleguide/pyguide.html
+line-length = 80
+
+[tool.ruff.lint]
+# Add the `line-too-long` rule to the enforced rule set. By default, Ruff omits rules that
+# overlap with the use of a formatter, like Black, but we can override this behavior by
+# explicitly adding the rule.
+extend-select = ["E501"]
+
+[build-system]
+requires = ["uv_build>=0.9.7,<0.10.0"]
+build-backend = "uv_build"

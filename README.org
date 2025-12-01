@@ -1,0 +1,241 @@
+ETH Video Zapper
+
+Scrape ETH videos in 0 clicks! Zap!
+
+License: GPLv3 or later.
+
+I release this script with the hope that it helps you study more productively and study on the go, when the connection is bad for streaming videos directly.
+Please, consider giving this project a star 🤩 if it helped you.
+
+* Get it
+
+=git clone= the project, then:
+#+begin_src shell
+uv run eth-videoz
+#+end_src
+
+Or alternatively, directly (dependencies have to be met):
+#+begin_src shell
+cd eth-videoz
+python src/eth_videoz/eth_videoz.py
+#+end_src
+
+#+begin_src shell
+pip install eth-videoz
+#+end_src
+
+Or if you have [[https://docs.astral.sh/uv/][uv]], which is a super-fast drop-in replacement for pip:
+#+begin_src shell
+uv pip install eth-videoz
+#+end_src
+
+** If you prefer Docker
+
+Running the script in a container might be a good idea.
+After all, the script would be executing a headless Chromium browser and interpreting JavaScript.
+While I don't expect video.ethz.ch to serve malicious JavaScript, you can still choose to use a container for extra protection.
+
+** For developers: If you want to run it and poke around the code
+#+begin_src shell
+git clone $repo
+cd eth-videoz
+uv run eth-videoz --help
+#+end_src
+
+* Run it
+
+# The actual command is =vidz=. Quite catchy, ain't it?
+
+A quick note on vocabulary, "lecture" = "playlist" = "series". I use the term "series" throughout code and documentation, because it is used by the platform.
+
+If you want to download only one series of videos:
+#+begin_src bash
+eth-videoz <arguments> <series link(s)>
+#+end_src
+
+
+
+To add a series to the =/urls/= and start downloading:
+#+begin_example
+eth-videoz 'https://video.ethz.ch/speakers/global-lecture/2024'
+#+end_example
+
+If you do this during the semester (as the new lectures are appearing), you just need to rerun the command without any arguments.
+It would reread =/urls= file and download only those videos which are new.
+#+begin_example
+eth-videoz
+#+end_example
+
+
+Don't forget the single quotes! You don't want your shell to start interpreting links.
+
+=vidz= would add the series link to the =url= file, and record the already downloaded video links in the =history= file.
+
+Upon the second run =vidz= would try to download any new videos which the lecturer added to the series in the meantime.
+#+begin_example
+vidz
+#+end_example
+
+=vidz= looks at =url= and =history= files to download only the videos which were not downloaded before.
+
+NB: Downloading individual video links would not be supported, because what prevents you from clicking the "Download" button the site provides in the first place?
+
+TODO: You have also the option to download the series partially, e.g. starting from video 4, skipping download of the previous videos. Please see [[*FAQ][FAQ]].
+
+* General design philosophy
+
+It would try to download as much as possible before giving up completely, so if a login for a specific "protected" series fails, it would still download all the other content.
+It would let you know what failed, though.
+
+* FAQ
+
+** Removing the notice to star the project immediately (please star it, though)
+Create an empty urls file either in your config:
+#+begin_src bash
+mkdir ~/.config/eth-videoz/urls
+#+end_src
+
+Or in the directory you plan on running your script from, e.g. ~lectures~
+
+#+begin_src bash
+mkdir ~/lectures/urls
+#+end_src
+
+* Video player recommendations
+
+- Linux -- [[https://wiki.archlinux.org/title/mpv][mpv]] (keyboard-controllable video player)
+  Especially useful is the feature to adjust the speed on the fly with '{' and '}' keys. When the lecturer talks slowly -- speed up, when there is an important moment to listen to -- slow down.
+
+- The rest -- [[https://www.videolan.org/vlc/][VLC]]
+
+* Development
+Tooling should be efficient and fast:
+
+- Formatter -- [[https://docs.astral.sh/ruff/][Ruff]] (100x faster than Black)
+- Packaging -- [[https://docs.astral.sh/uv/][uv]]
+
+Here is the smoothest introduction to uv you'd find: https://realpython.com/python-uv/
+I wished official docs had a step-by-step "Getting started".
+
+
+Example download
+vidz https://video.ethz.ch/speakers/global-lecture/2024
+
+You can check out Global Lectures at ETH events list, they are freely accessible to anyone, you don't need to be a student to attend (but you have to register for the event).
+
+
+The scraper should, with a few adjustments, work for any website using [[https://github.com/elan-ev/tobira][Tobira]].
+
+* Architecture
+** Downloading videos
+*** videos in public access (no need to log-in)
+*** videos requiring ETH LDAPs login
+*** videos which are "protected" by a username and password set by the lecturer
+
+** Looking up updates and updating
+Is done by default upon the script startup.
+Can be disabled in config (bare in mind the consequences of not updating - things might break).
+
+** TODO Fetching a list of courses from myStudies and getting videos for them automagically
+
+** Default locations
+
+By default, this script stores files it uses when executing in the following locations:
+
+Config file:
+~/.config/eth-videoz/config
+
+History (for fetching only new content):
+~/.local/share/eth-videoz/history
+
+Course urls to fetch:
+~/.local/share/eth-videoz/urls
+
+
+You can also put configuration files in the script folder (e.g. =~/.local/opt/eth-videoz/=) or supply them as command line arguments.
+
+
+When the docker image starts, it copies these files into the container and uses them.
+
+NB on text encoding: This script expects UTF-8 encoded config files. If Windows encoding is used for some reason, expect undefined behavior.
+
+* FAQ
+
+** Intended use
+This script is intended for students who watch recordings for studying, either as a refresher or when they are unable to attend the lecture.
+
+It is not intended to be used to inflict harm on the video platform itself, e.g. by opening many connections (DoS attack)
+
+
+** Design choices
+I loosely adhered to [[https://google.github.io/styleguide/pyguide.html][Google's style guide for Python]] to preserve my sanity when maintaining the code.
+
+I provide reasonable defaults, which work for me, but if you have a different use-case you can customize everything, either by providing command-line options, creating a config file (TODO), or changing the source code!
+If you want some feature to be added, open an issue, and I will consider it.
+
+The previous script by Georg Teufelberger used to use just plain requests for getting the login cookie and used a feature of the old video.ethz.ch backend which allowed to get a JSON video metadata directly.
+
+This is unfortunately no longer the case, so I had to opt for dynamic scraping (using a headless browser).
+
+I opted for Playwright instead of Selenium, because the latter was lacking the feature of capturing network resources (i.e. as you see them in the DevTools -> Network in your browser), which I had to use for capturing GraphQL query. In the early versions of this script, hardcoding GraphQL worked, but it is not maintainable, if the backend changes.
+On top of that, Playwright is 20% faster than Selenium, and exposes an async API, which makes it perfect for loading multiple pages in parallel.
+
+Docker is used for distribution, and while not light-weight (the whole image is just under 1GB), it gives students an easy setup option.
+
+** Thanks
+
+Thanks to my friends for random advice and for spreading the word about the script. I hope it helps ;)
+
+Also, thanks to Georg Teufelberger for writing the "original" script. My script borrows some features, but since this is a complete rewrite, I am the only human author of it (my friends LLMs being the "machine" authors).
+
+
+
+** How much vibe-coding is enough?
+
+Indeed, I used LLMs extensively in this project (which doesn't mean I didn't have to spend a couple of weekends on it).
+The design and structure are my own, but individual code snippets were produced using various LLMs (I was trying out different providers to see how different LLMs perform).
+
+Emoji in the log messages is something GPT did a bit, but then I brought it to a new level. You can read [[https://isakov.uk][my article]] about why I use them. But I find it kind of neat to have some color diffuse the logs.
+
+** I want to run it outside Docker
+While Docker might be an overkill, it adds some security (you're running a headless Chromium and executing all the JavaScript inside of it) and it also gives you a 1-command setup and it works across different OSs.
+
+I would *not* provide any support for Windows or MacOS. If you have issues with OS-specific things, just run Docker. If you happen to figure out how to run this script on those OSs and wish to contribute your setup instructions to the documentation, open a pull request.
+
+Running this script without Docker is absolutely possible (and that is what I do for testing).
+
+To install dependencies:
+
+```sh
+make
+```
+
+To install this script locally (~/.local/opt and ~/.local/bin by default):
+
+```sh
+make install
+```
+
+Note, ~/.local/bin must be in your PATH. You can add something like this to your .bashrc or .profile (in the latter case a relogin is required):
+
+```sh
+export PATH="$PATH:$HOME/.local/bin/"
+```
+
+** TODO ToDo list:
+
+- [ ] Create a config file parsing logic (for now the config is supplied via command line arguments)
+- [ ] Create per-source (video series url) config option (e.g. quality, subtitles, etc.), supplying as JSON.
+
+** Before reporting bugs
+Make sure to fully read and understand this README.
+
+** Before asking for features
+
+It is up to me to implement them. I *would not* accomodate proprietary OSs beyond releasing a Docker image for ease of use.
+All testing is done on Linux and for Linux.
+
+# ** If any of the video.ethz.ch maintainers come by this scraper:
+
+# Good news to you! You can still get your Matomo statistics, because this script runs a full-fledged browser in the background.
+# This work
